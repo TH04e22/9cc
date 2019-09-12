@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 
+/* Typedef */
 typedef enum {
 	TK_RESERVED,
 	TK_NUM,
@@ -21,9 +22,29 @@ struct Token {
 	char * str;
 };
 
+// Abstract syntax tree node type
+typedef enum {
+	ND_ADD, // +
+	ND_SUB, // -
+	ND_MUL, // *
+	ND_DIV, // /
+	ND_NUM, // Integer
+} NodeKind;
+
+typedef struct Node Node;
+
+// Abstract syntax tree node structure
+struct Node {
+	NodeKind kind; // node type
+	Node *lhs; // left
+	Node *rhs; // right
+	int val; // Only using in kind is ND_NUM
+};
+
 // Current processsing token
 Token *token;
 char *user_input;
+
 // Process error function
 // like printf argument
 void error( char* fmt, ... ) {
@@ -78,6 +99,7 @@ bool at_eof() {
 	return token->kind == TK_EOF;
 }
 
+                   /* Tokenize */
 // Create a new token, and linked by current token list
 Token *new_token( TokenKind kind, Token *cur, char *str ) {
 	Token *tok = calloc(1,sizeof(Token));
@@ -100,7 +122,7 @@ Token *tokenize( char *p ) {
 			continue;
 		}
 
-		if ( *p == '+' || *p == '-' ) {
+		if ( *p == '+' || *p == '-' || *p == '(' || *p == ')' || *p == '*' || *p == '/' ) {
 			cur = new_token( TK_RESERVED, cur, p++ );
 			continue;
 		}
@@ -118,29 +140,122 @@ Token *tokenize( char *p ) {
 	return head.next;
 }
 
+/* Parser */
+Node *new_node( NodeKind kind, Node *lhs, Node *rhs );
+Node *new_node_num( int val );
+Node *term();
+Node *mul();
+Node *expr();
+
+/* Code Generation */
+void gen( Node *node ) {
+	if ( node->kind == ND_NUM ) {
+		printf( "	push %d\n", node->val );
+		return;
+	}
+
+	gen( node->lhs );
+	gen( node->rhs );
+
+	printf( "	pop rdi\n" );
+	printf( "	pop rax\n" );
+
+	switch( node->kind ) {
+		case ND_ADD:
+			printf( "	add rax, rdi\n" );
+			break;
+		case ND_SUB:
+			printf( "	sub rax, rdi\n" );
+			break;
+		case ND_MUL:
+			printf( "	imul rax, rdi\n" );
+			break;
+		case ND_DIV:
+			printf( "	cqo\n" );
+			printf( "	idiv rdi\n");
+			break;
+
+	}
+
+	printf( "	push rax\n" );
+}
+
 int main( int argc, char **argv) {
     if( argc != 2 ) {
     	fprintf( stderr, "Arguments  error\n" );
         return 1;
 	}
 	
+	// Tokenize and parser
 	user_input = argv[1];
 	token = tokenize(argv[1]);
-    
+	Node *node = expr();
+
     printf(".intel_syntax noprefix\n");
     printf(".global main\n");
     printf("main:\n");
-    printf("	mov rax, %ld\n", expect_number());
-    while ( !at_eof() ) {
-    	if( consume('+') ) {
-            printf( "	add rax, %ld\n", expect_number());
-			continue;
-		}
-		
-		expect('-');
-		printf( "	sub rax, %ld\n", expect_number());
-	}
+    
+	// Traverse grammer tree and generate code
+	gen( node );
 
+	printf("	pop rax\n");	
     printf("	ret\n");
     return 0;
+}
+
+/* Parser */
+Node *new_node( NodeKind kind, Node *lhs, Node *rhs ) {
+	Node *node = calloc( 1, sizeof(Node));
+	node->kind = kind;
+	node->lhs = lhs;
+	node->rhs = rhs;
+	return node;
+}
+
+Node *new_node_num( int val ) {
+	Node *node = calloc(1, sizeof(Node));
+	node->kind = ND_NUM;
+	node->val = val;
+	return node;
+}
+
+// term = num | "(" expr ")"
+Node *term() {
+	// If next token is "(", it should be "(" expr ")".
+	if( consume('(') ) {
+		Node *node = expr();
+		expect(')');
+		return node;
+	}
+
+	// Otherwise, it should be number
+	return new_node_num(expect_number());
+}
+
+// mul = term ( "*" term | "/" term )*
+Node *mul() {
+	Node *node = term();
+
+	for(;;) {
+		if( consume('*') )
+			node = new_node(ND_MUL, node, term());
+		else if( consume('/') )
+			node = new_node(ND_DIV,node,term());
+		else
+			return node;
+	}
+}
+
+// expr = mul ("+" mul | "-" mul ) *
+Node *expr() {
+	Node *node = mul();
+	
+	for(;;) {
+		if( consume('+') )
+			node = new_node( ND_ADD, node, mul() );
+		else if( consume('-') )
+			node = new_node( ND_SUB, node, mul() );
+		else
+			return node;
+	}
 }
