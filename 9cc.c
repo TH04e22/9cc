@@ -141,9 +141,16 @@ Token *tokenize( char *p ) {
 }
 
 /* Parser */
+/*
+    expr  = mul ("+" mul | "-" mul)*
+	mul   = unary ("*" unary | "/" unary)*
+	unary = ("+" | "-")? term
+	term  = num | "(" expr ")" 
+*/
 Node *new_node( NodeKind kind, Node *lhs, Node *rhs );
 Node *new_node_num( int val );
 Node *term();
+Node *unary();
 Node *mul();
 Node *expr();
 
@@ -232,15 +239,15 @@ Node *term() {
 	return new_node_num(expect_number());
 }
 
-// mul = term ( "*" term | "/" term )*
+// mul = unary ( "*" unary | "/" unary )*
 Node *mul() {
-	Node *node = term();
+	Node *node = unary();
 
 	for(;;) {
 		if( consume('*') )
-			node = new_node(ND_MUL, node, term());
+			node = new_node(ND_MUL, node, unary());
 		else if( consume('/') )
-			node = new_node(ND_DIV,node,term());
+			node = new_node(ND_DIV,node,unary());
 		else
 			return node;
 	}
@@ -258,4 +265,13 @@ Node *expr() {
 		else
 			return node;
 	}
+}
+
+// unary = ("+" | "-")? term
+Node *unary() {
+  if (consume('+'))
+    return term();
+  if (consume('-'))
+    return new_node(ND_SUB, new_node_num(0), term());
+  return term();
 }

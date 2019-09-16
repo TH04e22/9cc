@@ -16,12 +16,9 @@ function test-case() {
     }
 }
 
-
-test-case 0 0
-test-case 42 42
 test-case 21 '5+20-4'
-test-case 41 ' 12 + 34 - 5 '
 test-case 47 '5+6*7'
-test-case 15 '5*(9-6)'
 test-case 4 '(3+5)/2'
+test-case -8 '-(3+5)'
+test-case -15 '-3*+5'
 Write-Output OK
