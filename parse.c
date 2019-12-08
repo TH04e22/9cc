@@ -1,13 +1,19 @@
 #include "9cc.h"
+
 /*
-    expr       = equality
+	program    = stmt*
+	stmt       = expr ";"
+	expr       = assign
+	assign     = equality ("=" assign)?
 	equality   = relational ("==" relational | "!=" relational)*
 	relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 	add        = mul ("+" mul | "-" mul)*
 	mul        = unary ("*" unary | "/" unary)*
-	unary      = ("+" | "-")? term
-	term       = num | "(" expr ")"
-*/
+	unary      = ("+" | "-")? primary
+	primary    = num | ident | "(" expr ")"
+*/ 
+
+Node *code[100];
 
 Node *new_node( NodeKind kind, Node *lhs, Node *rhs ) {
 	Node *node = calloc( 1, sizeof(Node));
@@ -24,9 +30,32 @@ Node *new_node_num( int val ) {
 	return node;
 }
 
-// expr = equality
+
+// program    = stmt*
+void program() {
+	int i = 0;
+	while (!at_eof())
+		code[i++] = stmt();
+	code[i] = NULL;
+}
+
+// stmt = expr ";"
+Node *stmt() {
+	Node *node = expr();
+	expect(";");
+	return node;
+}
+
+// expr = assign
 Node *expr() {
+	return assign();
+}
+
+// 	assign  = equality ("=" assign )?
+Node *assign() {
 	Node *node = equality();
+	if (consume("="))
+		node = new_node(ND_ASSIGN, node, assign());
 	return node;
 }
 
@@ -87,23 +116,31 @@ Node *mul() {
 	}
 }
 
-// unary = ("+" | "-")? term
+// unary = ("+" | "-")? primary
 Node *unary() {
   	if (consume("+"))
-    	return term();
+    	return primary();
   	if (consume("-"))
-    	return new_node(ND_SUB, new_node_num(0), term());
-  	return term();
+    	return new_node(ND_SUB, new_node_num(0), primary());
+  	return primary();
 }
 
-// term = num | "(" expr ")"
-Node *term() {
+// primary = num | ident | "(" expr ")"
+Node *primary() {
 	// If next token is "(", it should be "(" expr ")".
 	if( consume("(") ) {
 		Node *node = expr();
 		expect(")");
 		return node;
 	}
+
+	Token *tok = consume_ident();
+  	if (tok) {
+    	Node *node = calloc(1, sizeof(Node));
+    	node->kind = ND_LVAR;
+    	node->offset = (tok->str[0] - 'a' + 1) * 8;
+    	return node;
+  	}
 
 	// Otherwise, it should be number
 	return new_node_num(expect_number());

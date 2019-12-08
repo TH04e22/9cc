@@ -14,6 +14,15 @@ bool consume( char *op ) {
   	return true;
 }
 
+// If next token is identifier then return token, else return NULL
+Token *consume_ident() {
+	if( token->kind != TK_IDENT )
+		return NULL;
+	Token *temp = token;
+	token = token->next;
+	return temp;
+}
+
 // Next token is expected, then read next token and go on,
 // or show error
 void expect( char *op ) {
@@ -40,21 +49,21 @@ bool at_eof() {
 
                    /* Tokenize */
 // Create a new token, and linked by current token list
-Token *new_token( TokenKind kind, Token *cur, char *str, int len ) {
+Token *new_token( TokenKind kind, Token *cur, char *str ) {
 	Token *tok = calloc(1,sizeof(Token));
 	tok->kind = kind;
 	tok->str = str;
-	tok->len = len;
 	cur->next = tok;
 	return tok;
 }
 
 // Tokenize string p and return token list
-Token *tokenize( char *p ) {
+void tokenize() {
+	char *p = user_input;
 	Token head;
 	head.next = NULL;
 	Token *cur = &head;
-
+	
 	while (*p) {
 		// ignore white space
 		if (isspace(*p)) {
@@ -62,30 +71,41 @@ Token *tokenize( char *p ) {
 			continue;
 		}
 
+		// identifier
+		if ('a' <= *p && *p <= 'z') {
+  			cur = new_token(TK_IDENT, cur, p++ );
+  			cur->len = 1;
+ 			continue;
+		}
+
 		if( *p == '<' || *p == '!' || *p == '=' || *p == '>' ) {
 			if( *(p + 1) == '=') {
-				cur = new_token( TK_RESERVED, cur, p, 2);
+				cur = new_token( TK_RESERVED, cur, p );
 				p += 2;
+				cur->len = 2;
 			} else {
-				cur = new_token( TK_RESERVED, cur, p++, 1 );
+				cur = new_token( TK_RESERVED, cur, p++ );
+				cur->len = 1;
 			}
 			continue;
 		}
 
-		if ( *p == '+' || *p == '-' || *p == '(' || *p == ')' || *p == '*' || *p == '/' ) {
-			cur = new_token( TK_RESERVED, cur, p++, 1 );
+		if ( *p == '+' || *p == '-' || *p == '(' || *p == ')' || *p == '*' || *p == '/'  || *p == ';' ) {
+			cur = new_token( TK_RESERVED, cur, p++ );
+			cur->len = 1;
 			continue;
 		}
 
 		if (isdigit(*p)) {
-			cur = new_token( TK_NUM, cur ,p , 0 );
+			cur = new_token( TK_NUM, cur ,p );
 			cur->val = strtol( p, &p, 10 );
+			cur->len = 0;
 			continue;
 		}
 
 		error("Cannot tokenize");
 	}
 
-	new_token( TK_EOF, cur, p, 1 );
-	return head.next;
+	new_token( TK_EOF, cur, p );
+	token = head.next;
 }

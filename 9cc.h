@@ -7,9 +7,10 @@
 
 /* token.c */
 typedef enum {
-	TK_RESERVED,
-	TK_NUM,
-	TK_EOF,
+	TK_RESERVED, // 符號
+	TK_NUM,      // 數值
+	TK_EOF,      // 結束的標記
+	TK_IDENT,    // 識別符號
 } TokenKind;
 
 typedef struct Token Token;
@@ -26,24 +27,27 @@ struct Token {
 extern Token *token;
 extern char *user_input;
 bool consume( char *op );
+Token *consume_ident();
 void expect( char *op );
 int expect_number();
 bool at_eof();
-Token *new_token( TokenKind kind, Token *cur, char *str, int len );
-Token *tokenize( char *p );
+Token *new_token( TokenKind kind, Token *cur, char *str );
+void tokenize();
 
 /* parse.c */
 // Abstract syntax tree node type
 typedef enum {
-	ND_ADD, // +
-	ND_SUB, // -
-	ND_MUL, // *
-	ND_DIV, // /
-	ND_NUM, // Integer
-	ND_EQ,  // ==
-  	ND_NE,  // !=
-  	ND_LE,  // <=
-	ND_L,	// <
+	ND_ADD,    // +
+	ND_SUB,    // -
+	ND_MUL,    // *
+	ND_DIV,    // /
+	ND_EQ,     // ==
+  	ND_NE,     // !=
+  	ND_LE,     // <=
+	ND_L,	   // <
+	ND_ASSIGN, // =
+	ND_LVAR,   // Local Variable
+	ND_NUM,    // Integer
 } NodeKind;
 
 typedef struct Node Node;
@@ -51,24 +55,29 @@ typedef struct Node Node;
 // Abstract syntax tree node structure
 struct Node {
 	NodeKind kind; // node type
-	Node *lhs; // left
-	Node *rhs; // right
-	int val; // Only using in kind is ND_NUM
+	Node *lhs;     // left
+	Node *rhs;     // right
+	int val;       // Only using in kind is ND_NUM
+	int offset;    // Only using in kind is ND_LVAR
 };
 
 Node *new_node( NodeKind kind, Node *lhs, Node *rhs );
 Node *new_node_num( int val );
+void program();
+Node *stmt();
 Node *expr();
+Node *assign();
 Node *equality();
 Node *relational();
 Node *add();
 Node *mul();
 Node *unary();
-Node *term();
+Node *primary();
 
 /* util.c */
 void error( char* fmt, ... );
 void error_at( char *loc, char *fmt, ... );
 
 /* codegen.c */
+void gen_lval(Node *node);
 void gen( Node *node );

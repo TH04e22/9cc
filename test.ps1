@@ -17,13 +17,7 @@ function test-case() {
 }
 
 make
-test-case 21 '5+20-4'
-test-case 47 '5+6*7'
-test-case 4 '(3+5)/2'
-test-case -8 '-(3+5)'
-test-case -15 '-3*+5'
-test-case 1 '21 == 5+20-4'
-test-case 1 '(3+5)/2 != 5'
-test-case 0 '6*7 < 12'
-test-case 1 '(5+3)*5 > 12 + 5'
+test-case 63 'a = 76; b = 60; c = 54; d = (a + b + c)/3;'
+test-case 14 'a = 3; b = 5 * 6 - 8; a + b / 2;'
+
 Write-Output OK

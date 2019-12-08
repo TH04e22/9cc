@@ -9,9 +9,9 @@ OBJS=$(SRCS:.c=.o)
 $(OBJS): 9cc.h
 
 test: 9cc
-	./test.sh
+	./test.ps1
 
 clean:
-	rm -f 9cc *.o *~ tmp*
+	del -f 9cc *.o *~ tmp*
 
 .PHONY: test clean
