@@ -1,5 +1,22 @@
 #include "9cc.h"
 
+int is_alnum( char c ) {
+	return ('a' <= c && c <= 'z') ||
+           ('A' <= c && c <= 'Z') ||
+           ('0' <= c && c <= '9') ||
+           (c == '_');
+}
+
+int is_alpha( char c ) {
+	return ('a' <= c && c <= 'z') ||
+           ('A' <= c && c <= 'Z') ||
+           (c == '_');
+}
+
+int is_digit( char c ) {
+	return ('0' <= c && c <= '9');
+}
+
 // Current processsing token
 Token *token;
 char *user_input;
@@ -12,6 +29,14 @@ bool consume( char *op ) {
     	return false;
   	token = token->next;
   	return true;
+}
+
+// If next token type is expected, read next token and continue
+bool consume_token( TokenKind kind ) {
+	if( token->kind != kind )
+		return false;
+	token = token->next;
+	return true;
 }
 
 // If next token is identifier then return token, else return NULL
@@ -71,11 +96,29 @@ void tokenize() {
 			continue;
 		}
 
+		// return keyword
+		if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
+			cur = new_token( TK_RETURN, cur, p );
+			cur->kind = TK_RETURN;
+			cur->str = p;
+			p += 6;
+			continue;
+		}
+
 		// identifier
-		if ('a' <= *p && *p <= 'z') {
-  			cur = new_token(TK_IDENT, cur, p++ );
-  			cur->len = 1;
- 			continue;
+		if ( is_alpha( *p ) ) {
+			cur = new_token( TK_IDENT, cur, p );
+			cur->len = 1;
+			while( is_alnum( *(++p) ) ) {
+				cur->len++;
+			}
+			continue;
+		} else if( is_digit(*p) ) {
+			char* temp = p;
+			while( is_digit(*(++temp)) ) {};
+			
+			if( is_alpha( *temp ) )
+				error_at( temp-1, "Identifier can't begin with digit!");
 		}
 
 		if( *p == '<' || *p == '!' || *p == '=' || *p == '>' ) {
@@ -108,4 +151,14 @@ void tokenize() {
 
 	new_token( TK_EOF, cur, p );
 	token = head.next;
+}
+
+/* Variable */
+LVar *locals = NULL;
+
+LVar *find_LVar( Token *tok ) {
+	for ( LVar *var = locals; var; var = var->next ) 
+		if( var->len == tok->len && !memcmp( tok->str, var->name, tok->len ))
+			return var;
+	return NULL;
 }

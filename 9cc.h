@@ -11,6 +11,7 @@ typedef enum {
 	TK_NUM,      // 數值
 	TK_EOF,      // 結束的標記
 	TK_IDENT,    // 識別符號
+	TK_RETURN,   // 回傳return
 } TokenKind;
 
 typedef struct Token Token;
@@ -27,12 +28,26 @@ struct Token {
 extern Token *token;
 extern char *user_input;
 bool consume( char *op );
+bool consume_token( TokenKind kind );
 Token *consume_ident();
 void expect( char *op );
 int expect_number();
 bool at_eof();
 Token *new_token( TokenKind kind, Token *cur, char *str );
 void tokenize();
+
+typedef struct LVar LVar;
+
+// Local variable data tructure
+struct LVar {
+	LVar *next; // Next variable or NULL
+	char *name; // Variable Name
+	int len;    // Name length
+	int offset; // offset start from RBP
+};
+
+extern LVar *locals;
+LVar *find_LVar( Token *tok ); // Find variable in the token list
 
 /* parse.c */
 // Abstract syntax tree node type
@@ -48,6 +63,7 @@ typedef enum {
 	ND_ASSIGN, // =
 	ND_LVAR,   // Local Variable
 	ND_NUM,    // Integer
+	ND_RETURN, // return
 } NodeKind;
 
 typedef struct Node Node;

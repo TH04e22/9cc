@@ -2,7 +2,7 @@
 
 /*
 	program    = stmt*
-	stmt       = expr ";"
+	stmt       = expr ";" | "return" expr ";"
 	expr       = assign
 	assign     = equality ("=" assign)?
 	equality   = relational ("==" relational | "!=" relational)*
@@ -39,10 +39,19 @@ void program() {
 	code[i] = NULL;
 }
 
-// stmt = expr ";"
+// stmt = expr ";" | "return" expr ";"
 Node *stmt() {
-	Node *node = expr();
-	expect(";");
+	Node *node;
+	if( consume_token( TK_RETURN ) ) {
+		node = calloc( 1, sizeof( Node ) );
+		node->kind = ND_RETURN;
+		node->lhs = expr();
+	} else {
+		node = expr();
+	}
+
+	if (!consume(";"))
+    	error_at( token->str , "is not ; token!");
 	return node;
 }
 
@@ -138,7 +147,22 @@ Node *primary() {
   	if (tok) {
     	Node *node = calloc(1, sizeof(Node));
     	node->kind = ND_LVAR;
-    	node->offset = (tok->str[0] - 'a' + 1) * 8;
+    	
+		LVar *lvar = find_LVar( tok );
+		if( lvar ) {
+			node->offset = lvar->offset;
+		} else {
+			lvar = calloc( 1, sizeof( LVar ) );
+			lvar->next = locals;
+			lvar->name = tok->str;
+			lvar->len = tok->len;
+			if( locals )
+				lvar->offset = locals->offset + 8;
+			else
+				lvar->offset = 0;
+			node->offset = lvar->offset;
+			locals = lvar;
+		}
     	return node;
   	}
 

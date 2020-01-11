@@ -18,6 +18,7 @@ function test-case() {
 
 make
 test-case 63 'a = 76; b = 60; c = 54; d = (a + b + c)/3;'
-test-case 14 'a = 3; b = 5 * 6 - 8; a + b / 2;'
+test-case 82 'var1 = 12; var2 = 70; var3 = var1 + var2; return var3;'
+test-case 16 '_temp1 = 24 - 5 * 4; tem_4 = 12/3; num_tem = _temp1 + tem_4; return _temp1 + tem_4 + num_tem;'
 
 Write-Output OK
