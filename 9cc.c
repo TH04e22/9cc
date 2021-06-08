@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+char* user_input;
+
 typedef enum {
     TK_RESERVED, // reserved token
     TK_NUM,      // number
@@ -31,6 +33,19 @@ void error(char* fmt, ...) {
     exit(1);
 }
 
+void error_at(char* loc, char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+
+    int offset = loc - user_input;
+    fprintf(stderr, "%s\n", user_input);
+    fprintf(stderr, "%*s", offset, " ");
+    fprintf(stderr, "^ ");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    exit(1);
+}
+
 // Consume a expected operator, and advance token list to next token
 bool consume(char op) {
     if (token->kind != TK_RESERVED || token->str[0] != op)
@@ -42,14 +57,14 @@ bool consume(char op) {
 // Expect a expected operator, and advance token list to next token
 void expect(char op) {
     if (token->kind != TK_RESERVED || token->str[0] != op)
-        error("It's not '%c'.", op);
+        error_at(token->str, "It's not '%c'.", op);
     token = token->next;
 }
 
 // Get a number from token, and advance token list to next token
 int expect_number() {
     if (token->kind != TK_NUM)
-        error("There is not a number.");
+        error_at(token->str, "There is not a number.");
     int val = token->val;
     token = token->next;
     return val;
@@ -81,7 +96,7 @@ Token* tokenize(char* p) {
             continue;
         }
 
-        if (*p == '+' || *p == '-') {
+        if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')') {
             cur = new_token(TK_RESERVED, cur, p);
             p++;
             continue;
@@ -93,35 +108,143 @@ Token* tokenize(char* p) {
             continue;
         }
 
-        error("Can't not tokenize.");
+        error_at(p ,"Can't not tokenize.");
     }
 
     new_token(TK_EOF, cur, p);
     return head.next;
 }
 
+// Abstract tree node type
+typedef enum {
+    ND_ADD, // +
+    ND_SUB, // -
+    ND_MUL, // *
+    ND_DIV, // /
+    ND_NUM, // integer
+} NodeKind;
+
+typedef struct Node Node;
+
+struct Node {
+    NodeKind kind;
+    Node* lhs;
+    Node* rhs;
+    int val; // use for when node kind is ND_NUM
+};
+
+Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
+    Node* node = calloc(1, sizeof(Node));
+    node->kind = kind;
+    node->lhs = lhs;
+    node->rhs = rhs;
+    return node;
+}
+
+Node* new_node_num(int val) {
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_NUM;
+    node->val = val;
+    return node;
+}
+
+/*
+expr    = mul ("+" mul | "-" mul)*
+mul     = primary ("*" primary | "/" primary)*
+primary = num | "(" expr ")"
+*/
+
+Node* expr();
+Node* mul();
+Node* primary();
+
+void gen(Node* node) {
+    if (node->kind == ND_NUM) {
+        printf("    push %d\n", node->val);
+        return;
+    }
+
+    gen(node->lhs);
+    gen(node->rhs);
+
+    printf("    pop rdi\n");
+    printf("    pop rax\n");
+
+    switch(node->kind) {
+    case ND_ADD:
+        printf("    add rax, rdi\n");
+        break;
+    case ND_SUB:
+        printf("    sub rax, rdi\n");
+        break;
+    case ND_MUL:
+        printf("    imul rax, rdi\n");
+        break;
+    case ND_DIV:
+        printf("    cqo\n");
+        printf("    idiv rdi\n");
+        break;
+    }
+
+    printf("    push rax\n");
+}
+
 int main(int argc, char** argv) {
-    if(argc != 2) {
+    if (argc != 2) {
         error("Parameter count %d is incorrect\n", argc);
         return 1;
     }
 
-    token = tokenize(argv[1]);
+    user_input = argv[1];
+    token = tokenize(user_input);
+    Node *node = expr();
 
     printf(".intel_syntax noprefix\n");
     printf(".global main\n");
     printf("main:\n");
-    printf("    mov rax, %d\n", expect_number());
 
-    while(!at_eof()) {
-        if(consume('+')) {
-            printf("    add rax, %d\n", expect_number());
-            continue;
-        }
+    // code generate from syntax tree
+    gen(node);
 
-        expect('-');
-        printf("    sub rax, %d\n", expect_number());
-    }
+    printf("    pop rax\n");
     printf("    ret\n");
     return 0;
+}
+
+Node* expr() {
+    Node* node = mul();
+
+    for(;;) {
+        if (consume('+'))
+            node = new_node(ND_ADD, node, mul());
+        else if (consume('-'))
+            node = new_node(ND_SUB, node, mul());
+        else
+            return node;
+    }
+}
+
+Node* mul() {
+    Node* node = primary();
+
+    for (;;) {
+        if (consume('*'))
+            node = new_node(ND_MUL, node, primary());
+        else if (consume('/'))
+            node = new_node(ND_DIV, node, primary());
+        else
+            return node;
+    }
+}
+
+Node *primary() {
+    // consume ( and expect ) appear
+    if (consume('(')) {
+        Node *node = expr();
+        expect(')');
+        return node;
+    }
+
+    // expect get a number
+    return new_node_num(expect_number());
 }
