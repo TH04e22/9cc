@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-char* user_input;
+extern char* user_input;
 
 // utils.c
 // print error message with variable argument list
@@ -30,7 +30,7 @@ struct Token {
     int len;    // operator character length
 };
 
-Token* token;
+extern Token* token;
 
 Token* tokenize(char* p);
 Token* new_token(TokenKind kind, Token* cur, char* str, int len);
@@ -64,11 +64,23 @@ struct Node {
     int offset; // use for when node kind is ND_LVAR
 };
 
-Node* code[100];
+extern Node* code[100];
 
 Node *new_node(NodeKind kind);
 Node *new_binary(NodeKind kind, Node *lhs, Node *rhs);
 Node *new_num(int val);
+
+typedef struct LVar LVar;
+
+struct LVar {
+    LVar* next; // next variable
+    char* name; // variable name
+    int len;    // name length
+    int offset; // offset from RBP
+};
+
+extern LVar* locals;
+LVar* find_LVar(Token* tok);
 
 /*
 program    = stmt*

@@ -1,5 +1,10 @@
 #include "9cc.h"
 
+char* user_input = NULL;
+Token* token = NULL;
+Node* code[100];
+LVar* locals = NULL;
+
 // whether string p start with q
 bool startswith(char* p, char* q) {
     return memcmp(p, q, strlen(q)) == 0;
@@ -76,8 +81,13 @@ Token* tokenize(char* p) {
             continue;
         }
 
-        if ('a' <= *p && *p <= 'z') {
-            cur = new_token(TK_IDENT, cur, p++, 1);
+        if (isalpha(*p)) {
+            // start of variable
+            char* q = p;
+            do {
+                p++;
+            } while(isalpha(*p));
+            cur = new_token(TK_IDENT, cur, q, p-q);
             continue;
         }
 
@@ -118,6 +128,14 @@ Node *new_num(int val) {
   Node *node = new_node(ND_NUM);
   node->val = val;
   return node;
+}
+
+LVar* find_LVar(Token* tok) {
+    for(LVar* var = locals; var != NULL; var = var->next) {
+        if(var->len == tok->len && !memcmp(tok->str, var->name, var->len))
+            return var;
+    }
+    return NULL;
 }
 
 void program() {
@@ -232,10 +250,29 @@ Node *primary() {
     }
 
     Token* tok = consume_ident();
-    if (tok != NULL) {
+    if (tok) {
         Node *node = calloc(1, sizeof(Node));
         node->kind = ND_LVAR;
-        node->offset = (tok->str[0] - 'a') * 8;
+
+        LVar* lvar = find_LVar(tok);
+        if (lvar) {
+            node->offset = lvar->offset;
+        } else {
+            lvar = calloc(1, sizeof(LVar));
+
+            lvar->next = locals;
+            lvar->name = tok->str;
+            lvar->len = tok->len;
+
+            if (locals != NULL) {
+                lvar->offset = locals->offset + 8;
+            } else {
+                lvar->offset = 8;
+            }
+        
+            node->offset = lvar->offset;
+            locals = lvar;
+        }
         return node;
     }
 

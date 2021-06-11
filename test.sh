@@ -27,4 +27,10 @@ a=10;
 b=a*a;
 c=2*a+b;'
 
+assert 46 '
+foo=11;
+bar=12;
+cal=(foo+bar)*2;
+'
+
 echo OK
