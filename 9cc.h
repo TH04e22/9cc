@@ -15,6 +15,7 @@ void error_at(char* loc, char* fmt, ...);
 // parser.c
 typedef enum {
     TK_RESERVED, // reserved token
+    TK_IDENT,    // identifier
     TK_NUM,      // number
     TK_EOF,      // end of token list
 } TokenKind;
@@ -48,6 +49,8 @@ typedef enum {
     ND_NE, // !=
     ND_LT,  // <
     ND_LE,  // <=
+    ND_ASSIGN, // =
+    ND_LVAR,
     ND_NUM, // integer
 } NodeKind;
 
@@ -58,26 +61,35 @@ struct Node {
     Node* lhs;
     Node* rhs;
     int val; // use for when node kind is ND_NUM
+    int offset; // use for when node kind is ND_LVAR
 };
+
+Node* code[100];
 
 Node *new_node(NodeKind kind);
 Node *new_binary(NodeKind kind, Node *lhs, Node *rhs);
 Node *new_num(int val);
 
 /*
-expr       = equality
+program    = stmt*
+stmt       = expr ";"
+expr       = assign
+assign     = equality ("=" assign)?
 equality   = relational ("==" relational | "!=" relational)*
 relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
 unary      = ("+" | "-")? primary
-primary    = num | "(" expr ")"
+primary    = num | ident | "(" expr ")"
 */
 
+void program();
+Node* stmt();
 Node* expr();
-Node *equality();
-Node *relational();
-Node *add();
+Node* assign();
+Node* equality();
+Node* relational();
+Node* add();
 Node* mul();
 Node* unary();
 Node* primary();
