@@ -15,6 +15,7 @@ void error_at(char* loc, char* fmt, ...);
 // parser.c
 typedef enum {
     TK_RESERVED, // reserved token
+    TK_RETURN,   // return
     TK_IDENT,    // identifier
     TK_NUM,      // number
     TK_EOF,      // end of token list
@@ -51,6 +52,7 @@ typedef enum {
     ND_LE,  // <=
     ND_ASSIGN, // =
     ND_LVAR,
+    ND_RETURN, // return
     ND_NUM, // integer
 } NodeKind;
 
@@ -84,7 +86,7 @@ LVar* find_LVar(Token* tok);
 
 /*
 program    = stmt*
-stmt       = expr ";"
+stmt       = expr ";"| "return" expr ";"
 expr       = assign
 assign     = equality ("=" assign)?
 equality   = relational ("==" relational | "!=" relational)*

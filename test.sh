@@ -4,7 +4,7 @@ assert() {
     input="$2"
 
     ./9cc "$input" > tmp.s
-    cc -o tmp tmp.s
+    cc -g -o tmp tmp.s
     ./tmp
     actual="$?"
 
@@ -31,6 +31,13 @@ assert 46 '
 foo=11;
 bar=12;
 cal=(foo+bar)*2;
+'
+
+assert 70 '
+var1=10;
+var2=20;
+var3=var1+3*var2;
+return var3;
 '
 
 echo OK

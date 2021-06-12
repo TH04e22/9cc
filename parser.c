@@ -10,10 +10,27 @@ bool startswith(char* p, char* q) {
     return memcmp(p, q, strlen(q)) == 0;
 }
 
+// the character is alphabet or number or '_'
+int is_alnum(char c) {
+    return ('a' <= c && c <= 'z') ||
+            ('A' <= c && c <= 'Z') ||
+            ('0' <= c && c <= '9') ||
+            (c == '_');
+}
+
 // Consume a expected operator, and advance token list to next token
 bool consume(char* op) {
     if (token->kind != TK_RESERVED || strlen(op) != token->len || 
         memcmp(token->str, op, token->len))
+        return false;
+
+    token = token->next;
+    return true;
+}
+
+// Consume by token type
+bool consume_type(TokenKind kind) {
+    if(token->kind != kind)
         return false;
 
     token = token->next;
@@ -69,7 +86,7 @@ Token* tokenize(char* p) {
     Token* cur = &head;
 
     while(*p) {
-        if (isblank(*p) || *p == '\n' || *p == 'r') {
+        if (isblank(*p) || *p == '\n' || *p == '\r') {
             p++;
             continue;
         }
@@ -81,12 +98,18 @@ Token* tokenize(char* p) {
             continue;
         }
 
+        if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
+            cur = new_token(TK_RETURN, cur, p, 6);
+            p += 6;
+            continue;
+        }
+
         if (isalpha(*p)) {
             // start of variable
             char* q = p;
             do {
                 p++;
-            } while(isalpha(*p));
+            } while(is_alnum(*p));
             cur = new_token(TK_IDENT, cur, q, p-q);
             continue;
         }
@@ -145,9 +168,17 @@ void program() {
     code[i] = NULL;
 }
 
-// stmt = expr;
+// stmt = expr ";"| "return" expr ";"
 Node* stmt() {
-    Node* node = expr();
+    Node *node;
+    if(consume_type(TK_RETURN)) {
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_RETURN;
+        node->lhs = expr();
+    } else {
+        node = expr();
+    }
+
     expect(";");
     return node;
 }
